@@ -44,3 +44,13 @@ npm run build && npm run preview   # http://127.0.0.1:4173
 ```
 
 私人研究用途，勿公开滥用免费 API。
+
+## Vercel 适配（2026-09-19）
+
+- 共享逻辑：`lib/coingecko-cache.ts`、`lib/screener.ts`
+- Serverless：`api/screener.ts`、`api/health.ts`、`api/auth.ts`
+- 门禁：`middleware.ts` + `public/gate.html`（`SITE_PASSWORD`）
+- 配置：`vercel.json`（build → `dist`，SPA rewrite 排除 `/api` 与带扩展名静态资源）
+- `npm run build`：通过
+- 部署步骤见 `DEPLOY_VERCEL.md`
+

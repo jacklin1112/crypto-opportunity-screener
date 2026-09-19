@@ -16,7 +16,9 @@
 ## 技术栈
 
 Vite + React + TypeScript + Tailwind CSS v4  
-API 代理：Vite 插件中间件（`dev` 与 `preview` 均可用）
+API：本地 Vite 中间件（`dev` / `preview`）；生产为 Vercel Serverless（`/api`）
+
+部署说明见 [DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md)（含 Deployment Protection / `SITE_PASSWORD`）。
 
 ## 运行
 
