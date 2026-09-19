@@ -1,6 +1,7 @@
 import type { Plugin, Connect } from 'vite'
 import type { ServerResponse } from 'node:http'
-import { fetchCoinGecko, cacheStats, clearCache } from './coingecko-cache.ts'
+import { fetchCoinGecko, cacheStats, clearCache } from '../lib/coingecko-cache.ts'
+import { buildScreener } from '../lib/screener.ts'
 
 function sendJson(res: ServerResponse, status: number, data: unknown) {
   res.statusCode = status
@@ -70,53 +71,20 @@ function attachApi(middlewares: Connect.Server) {
       }
 
       if (url.startsWith('/api/screener')) {
-        // Single markets call (per_page=150) + trending — fewer free-tier hits
-        const marketsPath =
-          `/coins/markets?vs_currency=usd&order=market_cap_desc` +
-          `&per_page=150&page=1&sparkline=false&price_change_percentage=24h,7d,30d`
-
-        const m1 = await fetchCoinGecko(marketsPath)
-        const trending = await fetchCoinGecko('/search/trending')
-
-        if (m1.status < 200 || m1.status >= 300) {
-          sendJson(res, m1.status === 429 ? 429 : m1.status, {
-            error: 'markets_failed',
-            detail: m1.body.slice(0, 500) || 'rate_limited_or_empty',
-            hint: 'CoinGecko 免费接口限流，请约 1 分钟后重试',
-          })
+        const result = await buildScreener()
+        if (!result.ok) {
+          sendJson(res, result.error.status, result.error.body)
           return
         }
+        sendJson(res, 200, result.data)
+        return
+      }
 
-        let markets: unknown[] = []
-        try {
-          const a = JSON.parse(m1.body)
-          markets = Array.isArray(a) ? a : []
-        } catch {
-          sendJson(res, 502, { error: 'parse_failed' })
-          return
-        }
-
-        let trendingIds: string[] = []
-        let trendingItems: unknown[] = []
-        try {
-          if (trending.status >= 200 && trending.status < 300) {
-            const t = JSON.parse(trending.body)
-            trendingItems = t.coins || []
-            trendingIds = (t.coins || [])
-              .map((c: { item?: { id?: string } }) => c?.item?.id)
-              .filter(Boolean) as string[]
-          }
-        } catch {
-          // ignore trending parse errors
-        }
-
+      // Local-only: accept password and set cookie (mirrors Vercel /api/auth)
+      if (url.startsWith('/api/auth')) {
         sendJson(res, 200, {
-          fetchedAt: new Date().toISOString(),
-          count: markets.length,
-          markets,
-          trendingIds,
-          trending: trendingItems,
-          cache: cacheStats(),
+          ok: true,
+          note: 'SITE_PASSWORD gate is enforced on Vercel via middleware; local dev is open.',
         })
         return
       }
